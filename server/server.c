@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 
+#define DEBUG(dbgmsg) printf(dbgmsg)
+
 int main(int argc, char **argv)
 {
     int client_sock, listener_sock;
@@ -116,6 +118,7 @@ int main(int argc, char **argv)
                 perror("epoll_ctl add client socket error.");
                 exit(EXIT_FAILURE);
             }
+            DEBUG("New client.\n");
         }
         else if (clients_count >= sizeof(clients_socket_list) - 1)
         {
@@ -138,15 +141,42 @@ int main(int argc, char **argv)
                 break;
             }
 
-            bytes_read = recv(clients_wait_events[0].data.fd, buf, 1024, 0);
+            bytes_read = recv(clients_wait_events[0].data.fd, buf, sizeof(buf), 0);
+            if (bytes_read == -1 || bytes_read == 0)
+            {
+                break;
+            }
+            buf[bytes_read] = '\0';
+
+            /*
+            if (bytes_read > 0 && bytes_read < 2)
+            {
+                buf[0] = '\n';
+                buf[1] = '\0';
+            }
+            */
+            DEBUG("point_001\n");
             if (bytes_read > 0)
             {
                 printf("%s\n", buf);
                 for (int i = 0; i < clients_count; i++)
                 {
-                    if (clients_socket_list[i] == clients_wait_events[0].data.fd)
+                    if (clients_socket_list[i] == clients_wait_events[0].data.fd) //no send message for sender
                         continue;
-                    send(clients_socket_list[i], buf, bytes_read, 0);
+                    if (send(clients_socket_list[i], buf, bytes_read, 0) == -1) //send msg, if error del client from clients_socket_list and epoll
+                    {
+                        client_ev.events = EPOLLIN;
+                        client_ev.data.fd = clients_socket_list[i];
+                        if (epoll_ctl(clients_epollfd, EPOLL_CTL_DEL, clients_socket_list[i], &client_ev) == -1)
+                        {
+                            perror("epoll_ctl add client socket error.");
+                            exit(EXIT_FAILURE);
+                        }
+                        close(clients_socket_list[i]);
+                        clients_socket_list[i] = 0;
+
+                        DEBUG("Delete client.\n");
+                    }
                 }
             }
         }

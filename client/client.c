@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <sys/epoll.h>
 
-int getstring(char* buf, int length);
+#define STDIN_FD 0
+
+int getstring(char *buf, int length);
 
 int main(int argc, char **argv)
 {
@@ -37,26 +41,67 @@ int main(int argc, char **argv)
         exit(3);
     }
 
+    struct epoll_event ev, out_event;
+    int epollfd;
+    epollfd = epoll_create(2);
+    ev.events = EPOLLIN;
+    ev.data.fd = sock;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sock, &ev) == -1)
+    {
+        perror("epoll_ctl: add net socket error.");
+        exit(EXIT_FAILURE);
+    }
+    ev.events = EPOLLIN;
+    ev.data.fd = STDIN_FD;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, STDIN_FD, &ev) == -1)
+    {
+        perror("epoll_ctl: add stdin descriptor error.");
+        exit(EXIT_FAILURE);
+    }
+
+    int ep_ret;
     while (1)
     {
-
-        //    char msg[1024] = "Hello!";
-        char msg[1024] = "\n";
-        getstring(msg, sizeof(msg));
-        send(sock, msg, sizeof(msg), 0);
-        recv(sock, msg, sizeof(msg), 0);
-        printf(msg);
-        putchar('\n');
-       // getchar();
+        ep_ret = epoll_wait(epollfd, &out_event, 1, 1000);
+        if (ep_ret == -1)
+        {
+            perror("epoll_wait error.");
+            exit(EXIT_FAILURE);
+        }
+        else if (ep_ret == 0)
+        {
+            continue;
+        }
+        else
+        {
+            if (out_event.data.fd != STDIN_FD)
+            {
+                char msg[1024];
+                int rec_ret = recv(sock, msg, sizeof(msg), 0);
+                msg[rec_ret] = '\0';
+                printf(msg);
+            }
+            else
+            {
+                char msg[1024];
+                int string_len = getstring(msg, sizeof(msg));
+                send(sock, msg, string_len, 0);
+            }
+        }
     }
+    close(sock);
 }
 
-int getstring(char* string_buf, int length) {
+int getstring(char *string_buf, int length)
+{
     char c = 0;
     int i = 0;
-    while((c = getchar()) != '\n' && length > i) {
+    while ((c = getchar()) != '\n' && length > i - 2)
+    {
         string_buf[i] = c;
         i++;
     }
-
+    string_buf[i++] = '\n';
+    string_buf[i] = '\0';
+    return i;
 }
