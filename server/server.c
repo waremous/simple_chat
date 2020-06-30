@@ -7,8 +7,11 @@
 #include <stddef.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
+#include <string.h>
 
 #define DEBUG(dbgmsg) printf(dbgmsg)
+
+int proto_echo(int sockfd);
 
 int main(int argc, char **argv)
 {
@@ -183,6 +186,28 @@ int main(int argc, char **argv)
 
         //close(client_sock);
     }
+
     close(listener_sock);
     return 0;
+}
+
+int proto_echo(int sockfd)
+{
+    char hello_serv[] = "HELLO_FROM_SERV: HELLO";
+    char hello_client[] = "HELLO_FROM_CLIENT: HELLO";
+    int max_len = (sizeof(hello_serv) > sizeof(hello_client)) ? sizeof(hello_serv) : sizeof(hello_client);
+    char msg_buf[max_len];
+    send(sockfd, hello_serv, sizeof(hello_serv), 0);
+    recv(sockfd, msg_buf, max_len, MSG_PEEK);
+    if (strcmp(hello_client, msg_buf) == 0)
+    {
+        recv(sockfd, msg_buf, max_len, 0);
+        DEBUG("HELLO CLIENT\n");
+        return 0;
+    }
+    else
+    {
+        DEBUG("CLIENT LOST");
+        return -1;
+    }
 }
