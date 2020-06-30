@@ -6,10 +6,14 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <string.h>
 
 #define STDIN_FD 0
 
+#define DEBUG(dbgmsg) printf(dbgmsg)
+
 int getstring(char *buf, int length);
+int proto_echo_client(int sockfd);
 
 int main(int argc, char **argv)
 {
@@ -60,7 +64,7 @@ int main(int argc, char **argv)
     }
 
     int ep_ret;
-    while (1)
+    for (;;)
     {
         ep_ret = epoll_wait(epollfd, &out_event, 1, 1000);
         if (ep_ret == -1)
@@ -74,18 +78,19 @@ int main(int argc, char **argv)
         }
         else
         {
-            if (out_event.data.fd != STDIN_FD)
-            {
-                char msg[1024];
-                int rec_ret = recv(sock, msg, sizeof(msg), 0);
-                msg[rec_ret] = '\0';
-                printf(msg);
-            }
-            else
+            if (out_event.data.fd == STDIN_FD)
             {
                 char msg[1024];
                 int string_len = getstring(msg, sizeof(msg));
                 send(sock, msg, string_len, 0);
+            }
+            else
+            {
+                proto_echo_client(sock);
+                char msg[1024];
+                int rec_ret = recv(sock, msg, sizeof(msg), 0);
+                msg[rec_ret] = '\0';
+                printf(msg);
             }
         }
     }
@@ -104,4 +109,28 @@ int getstring(char *string_buf, int length)
     string_buf[i++] = '\n';
     string_buf[i] = '\0';
     return i;
+}
+
+int proto_echo_client(int sockfd)
+{
+    char hello_serv[] = "HELLO_FROM_SERV: HELLO";
+    char hello_client[] = "HELLO_FROM_CLIENT: HELLO";
+    int max_len = (sizeof(hello_serv) > sizeof(hello_client)) ? sizeof(hello_serv) : sizeof(hello_client);
+    char msg_buf[max_len];
+    recv(sockfd, msg_buf, max_len, MSG_PEEK);
+
+    if (strcmp(hello_serv, msg_buf) == 0)
+    {
+        recv(sockfd, msg_buf, max_len, 0);
+        send(sockfd, hello_client, sizeof(hello_client), 0);
+        DEBUG("HELLO SERVER\n");
+        return 0;
+    }
+    /* 
+    else
+    {
+        DEBUG("CLIENT LOST");
+        return -1;
+    }
+    */
 }

@@ -11,7 +11,7 @@
 
 #define DEBUG(dbgmsg) printf(dbgmsg)
 
-int proto_echo(int sockfd);
+int proto_echo_serv(int sockfd);
 
 int main(int argc, char **argv)
 {
@@ -95,13 +95,13 @@ int main(int argc, char **argv)
                 perror("Accept error.");
                 exit(EXIT_FAILURE);
             }
-
+            //Add to the end of the list(array) if there is space.
             if (clients_socket_list[clients_count] == 0)
             {
                 clients_socket_list[clients_count] = client_sock;
                 clients_count++;
             }
-            else
+            else //Else, search of near free space(0) in array
             {
                 for (int i = 0; i < sizeof(clients_socket_list); i++)
                 {
@@ -128,6 +128,36 @@ int main(int argc, char **argv)
             client_sock = accept(listener_sock, NULL, NULL);
             close(client_sock);
             perror("Limit clients.");
+        }
+
+        DEBUG("point_001\n");
+        //ping clients
+        if (clients_count > 0)
+        {
+            DEBUG("point_002\n");
+            for (int i = 0; i < sizeof(clients_socket_list); i++)
+            {
+                DEBUG("point_003\n");
+                if (clients_socket_list[i] == 0)
+                {
+                    continue;
+                }
+                if (proto_echo_serv(clients_socket_list[i]) == -1)
+                {
+                    client_ev.events = EPOLLIN;
+                    client_ev.data.fd = clients_socket_list[i];
+                    if (epoll_ctl(clients_epollfd, EPOLL_CTL_DEL, clients_socket_list[i], &client_ev) == -1)
+                    {
+                        perror("epoll_ctl add client socket error.");
+                        exit(EXIT_FAILURE);
+                    }
+                    close(clients_socket_list[i]);
+                    clients_socket_list[i] = 0;
+                    clients_count--;
+
+                    DEBUG("Delete client.\n");
+                }
+            }
         }
 
         //receive and send messages
@@ -159,8 +189,10 @@ int main(int argc, char **argv)
             }
             */
             DEBUG("point_001\n");
+
             if (bytes_read > 0)
             {
+                DEBUG("point_002\n");
                 printf("%s\n", buf);
                 for (int i = 0; i < clients_count; i++)
                 {
@@ -177,6 +209,7 @@ int main(int argc, char **argv)
                         }
                         close(clients_socket_list[i]);
                         clients_socket_list[i] = 0;
+                        clients_count--;
 
                         DEBUG("Delete client.\n");
                     }
@@ -191,7 +224,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-int proto_echo(int sockfd)
+int proto_echo_serv(int sockfd)
 {
     char hello_serv[] = "HELLO_FROM_SERV: HELLO";
     char hello_client[] = "HELLO_FROM_CLIENT: HELLO";
@@ -207,7 +240,7 @@ int proto_echo(int sockfd)
     }
     else
     {
-        DEBUG("CLIENT LOST");
+        DEBUG("CLIENT LOST\n");
         return -1;
     }
 }
