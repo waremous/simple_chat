@@ -63,9 +63,11 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    //main for()
     int ep_ret;
     for (;;)
     {
+        proto_echo_client(sock); // Work? WORK?!! WORK!!! (WTF??? O_o)
         ep_ret = epoll_wait(epollfd, &out_event, 1, 1000);
         if (ep_ret == -1)
         {
@@ -74,6 +76,7 @@ int main(int argc, char **argv)
         }
         else if (ep_ret == 0)
         {
+            DEBUG("point_001\n");
             continue;
         }
         else
@@ -86,7 +89,7 @@ int main(int argc, char **argv)
             }
             else
             {
-                proto_echo_client(sock);
+                //proto_echo_client(sock); // Not work :(
                 char msg[1024];
                 int rec_ret = recv(sock, msg, sizeof(msg), 0);
                 msg[rec_ret] = '\0';

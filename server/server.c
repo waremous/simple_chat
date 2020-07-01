@@ -8,8 +8,18 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <string.h>
+#include <time.h>
 
+#define _SIZE_OF_ARRAY_CLIENTS_SOCKET_LIST 10
+#define MAX_CLIENTS _SIZE_OF_ARRAY_CLIENTS_SOCKET_LIST
+
+//_START_Support defines
 #define DEBUG(dbgmsg) printf(dbgmsg)
+#define DEBUG_TIME(dbgmsg) printf("%s : %ld", dbgmsg, time(NULL))
+#define DEBUG_TIME_NL(dbgmsg) printf("%s : %ld\n", dbgmsg, time(NULL))
+#define DEBIG_PUT_VAR(spec, var) printf(spec, var)
+#define nl_c putchar('\n')
+//_END_Support defines
 
 int proto_echo_serv(int sockfd);
 
@@ -23,7 +33,7 @@ int main(int argc, char **argv)
     struct epoll_event listener_ev, listener_wait_ev;
     int listener_epollfd;
     //epoll clients vars
-    struct epoll_event client_ev, clients_wait_events[100];
+    struct epoll_event client_ev, clients_wait_events[MAX_CLIENTS];
     int clients_epollfd;
 
     listener_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -62,7 +72,7 @@ int main(int argc, char **argv)
     }
 
     //epoll start init clients
-    clients_epollfd = epoll_create(100);
+    clients_epollfd = epoll_create(MAX_CLIENTS);
     if (clients_epollfd == -1)
     {
         perror("Failure create clients epoll_create()");
@@ -70,8 +80,8 @@ int main(int argc, char **argv)
     }
 
     //main for() vars
-    int ep_ret = 0, clients_count = 0, clients_socket_list[100];
-    for (int i = sizeof(clients_socket_list) - 1; i >= 0; i--)
+    int ep_ret = 0, clients_count = 0, clients_socket_list[MAX_CLIENTS];
+    for (int i = 0; i < MAX_CLIENTS; i++)
     {
         clients_socket_list[i] = 0;
     }
@@ -86,8 +96,9 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
 
+        //TODO: Add check client lost or recv
         //add new client socket
-        if (ep_ret > 0 && clients_count < sizeof(clients_socket_list) - 1)
+        if (ep_ret > 0 && clients_count < MAX_CLIENTS - 1)
         {
             client_sock = accept(listener_sock, NULL, NULL);
             if (client_sock < 0)
@@ -103,7 +114,7 @@ int main(int argc, char **argv)
             }
             else //Else, search of near free space(0) in array
             {
-                for (int i = 0; i < sizeof(clients_socket_list); i++)
+                for (int i = 0; i < MAX_CLIENTS; i++)
                 {
                     if (clients_socket_list[i] == 0)
                     {
@@ -123,25 +134,27 @@ int main(int argc, char **argv)
             }
             DEBUG("New client.\n");
         }
-        else if (clients_count >= sizeof(clients_socket_list) - 1)
+        else if (clients_count >= MAX_CLIENTS - 1)
         {
             client_sock = accept(listener_sock, NULL, NULL);
             close(client_sock);
             perror("Limit clients.");
         }
 
-        DEBUG("point_001\n");
+        DEBUG_TIME_NL("point_001");
         //ping clients
         if (clients_count > 0)
         {
-            DEBUG("point_002\n");
-            for (int i = 0; i < sizeof(clients_socket_list); i++)
+            DEBUG_TIME_NL("point_002");
+            for (int i = 0; i < MAX_CLIENTS; i++)
             {
-                DEBUG("point_003\n");
+                DEBUG_TIME_NL("point_003");
                 if (clients_socket_list[i] == 0)
                 {
+                    DEBIG_PUT_VAR("i = %d\n", i);
                     continue;
                 }
+                DEBUG_TIME_NL("point_004");
                 if (proto_echo_serv(clients_socket_list[i]) == -1)
                 {
                     client_ev.events = EPOLLIN;
@@ -230,8 +243,11 @@ int proto_echo_serv(int sockfd)
     char hello_client[] = "HELLO_FROM_CLIENT: HELLO";
     int max_len = (sizeof(hello_serv) > sizeof(hello_client)) ? sizeof(hello_serv) : sizeof(hello_client);
     char msg_buf[max_len];
+    DEBUG_TIME_NL("point_in_echo_001");
     send(sockfd, hello_serv, sizeof(hello_serv), 0);
+    DEBUG_TIME_NL("point_in_echo_002");
     recv(sockfd, msg_buf, max_len, MSG_PEEK);
+    DEBUG_TIME_NL("point_in_echo_003");
     if (strcmp(hello_client, msg_buf) == 0)
     {
         recv(sockfd, msg_buf, max_len, 0);
