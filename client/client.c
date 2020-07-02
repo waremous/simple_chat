@@ -8,7 +8,11 @@
 #include <sys/epoll.h>
 #include <string.h>
 
+//stdin descryptor
 #define STDIN_FD 0
+
+//sleep time for epoll_wait
+#define EWAIT 100
 
 #define DEBUG(dbgmsg) printf(dbgmsg)
 
@@ -68,7 +72,7 @@ int main(int argc, char **argv)
     for (;;)
     {
         proto_echo_client(sock); // Work? WORK?!! WORK!!! (WTF??? O_o)
-        ep_ret = epoll_wait(epollfd, &out_event, 1, 1000);
+        ep_ret = epoll_wait(epollfd, &out_event, 1, EWAIT);
         if (ep_ret == -1)
         {
             perror("epoll_wait error.");

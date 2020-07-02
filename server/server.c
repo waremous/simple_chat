@@ -10,8 +10,13 @@
 #include <string.h>
 #include <time.h>
 
+//size of array "clients_socket_list"
 #define _SIZE_OF_ARRAY_CLIENTS_SOCKET_LIST 10
 #define MAX_CLIENTS _SIZE_OF_ARRAY_CLIENTS_SOCKET_LIST
+
+//sleep time for epoll_wait
+#define EWAIT 100
+
 
 //_START_Support defines
 #define DEBUG(dbgmsg) printf(dbgmsg)
@@ -89,7 +94,7 @@ int main(int argc, char **argv)
     for (;;)
     {
         //wait new client socket
-        ep_ret = epoll_wait(listener_epollfd, &listener_wait_ev, 1, 1000);
+        ep_ret = epoll_wait(listener_epollfd, &listener_wait_ev, 1, EWAIT);
         if (ep_ret == -1)
         {
             perror("Wait listeners error.");
@@ -176,7 +181,7 @@ int main(int argc, char **argv)
         //receive and send messages
         for (;;)
         {
-            ep_ret = epoll_wait(clients_epollfd, clients_wait_events, 1, 1000);
+            ep_ret = epoll_wait(clients_epollfd, clients_wait_events, 1, EWAIT);
             if (ep_ret == -1)
             {
                 perror("epoll clients wait error.");
