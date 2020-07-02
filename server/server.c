@@ -11,11 +11,11 @@
 #include <time.h>
 
 //size of array "clients_socket_list"
-#define _SIZE_OF_ARRAY_CLIENTS_SOCKET_LIST 10
+#define _SIZE_OF_ARRAY_CLIENTS_SOCKET_LIST 5
 #define MAX_CLIENTS _SIZE_OF_ARRAY_CLIENTS_SOCKET_LIST
 
 //sleep time for epoll_wait
-#define EWAIT 100
+#define EWAIT 1000
 
 
 //_START_Support defines
@@ -247,11 +247,12 @@ int proto_echo_serv(int sockfd)
     char hello_serv[] = "HELLO_FROM_SERV: HELLO";
     char hello_client[] = "HELLO_FROM_CLIENT: HELLO";
     int max_len = (sizeof(hello_serv) > sizeof(hello_client)) ? sizeof(hello_serv) : sizeof(hello_client);
+    int recv_len = 0;
     char msg_buf[max_len];
     DEBUG_TIME_NL("point_in_echo_001");
     send(sockfd, hello_serv, sizeof(hello_serv), 0);
     DEBUG_TIME_NL("point_in_echo_002");
-    recv(sockfd, msg_buf, max_len, MSG_PEEK);
+    recv_len = recv(sockfd, msg_buf, max_len, MSG_PEEK);
     DEBUG_TIME_NL("point_in_echo_003");
     if (strcmp(hello_client, msg_buf) == 0)
     {
